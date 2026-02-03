@@ -1,0 +1,6 @@
+@RemitAnnex_HostAddress = http://localhost:5073
+
+GET {{RemitAnnex_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
