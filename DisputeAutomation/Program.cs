@@ -1,23 +1,40 @@
+using BusinessLogicLayer.Manager;
+using BusinessLogicLayer.Repositories;
+using DataAccessLayer.Repositories;
+using DisputeAutomation.DAL.Database;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
+// Register your dependencies
+builder.Services.AddScoped<IDBRepository, DBRepository>();
+builder.Services.AddScoped<DisputeManager>();
 // Add services to the container.
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// Application services & repositories
-builder.Services.AddScoped<BusinessLogicLayer.Manager.ICollectionManager, BusinessLogicLayer.Manager.CollectionManager>();
-builder.Services.AddScoped<BusinessLogicLayer.Processor.ICollectionProcessor, BusinessLogicLayer.Processor.CollectionProcessor>();
-builder.Services.AddScoped<DataAccessLayer.Repositories.ICollectionRepository, DataAccessLayer.Repositories.SqlServer.SqlServerCollectionRepository>();
+//db connection
+builder.Services.AddDbContext<DBConfiguration>(options =>
+       options.UseSqlServer(builder.Configuration.GetConnectionString("MTBBillCollectionDB")));
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path == "/")
+        {
+            context.Response.Redirect("/swagger");
+            return;
+        }
+        await next();
+    });
 }
 
 app.UseHttpsRedirection();
