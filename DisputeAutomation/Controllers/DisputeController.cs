@@ -1,54 +1,107 @@
-using System.Data;
-using BusinessLogicLayer.Manager;
-using BusinessLogicLayer.Models.DB;
 using BusinessLogicLayer.Models.Request;
+using BusinessLogicLayer.Models.Response;
+using BusinessLogicLayer.Processors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DisputeAutomation.Controllers
 {
+    /// <summary>
+    /// Common Dispute Controller for all clients (BREB, WASA, DESCO, DPDC)
+    /// Routes requests to appropriate client-specific processor
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class DisputeController : ControllerBase
     {
-        private readonly DisputeManager _disputeManager;
+        private readonly ProcessorFactory _processorFactory;
+        private readonly ILogger<DisputeController> _logger;
 
-        public DisputeController(DisputeManager disputeManager)
+        public DisputeController(ProcessorFactory processorFactory, ILogger<DisputeController> logger)
         {
-            _disputeManager = disputeManager;
+            _processorFactory = processorFactory;
+            _logger = logger;
         }
 
-        [HttpPost("today-collections")]
-        public async Task<IActionResult> GetTodayCollections(
-            [FromBody] TodayCollectionRequest request)
+        /// <summary>
+        /// Process collection for any client (BREB, WASA, DESCO, DPDC)
+        /// </summary>
+        /// <param name="request">Collection processing request with ClientType</param>
+        /// <returns>Processing result</returns>
+        [HttpPost("process-collection")]
+        public async Task<IActionResult> ProcessCollection([FromBody] ProcessCollectionRequest request)
         {
-            List<CollectionModel>? result = await _disputeManager.GetTodayCollectionsAsync(
-                request
-            );
-            List<BrebBillCollectionModel> result2 = new List<BrebBillCollectionModel>();
-            if(result != null)
+            try
             {
-                foreach (var item in result)
+                if (string.IsNullOrEmpty(request.CollFrom))
                 {
-                    BrebBillCollectionModel dt = await _disputeManager.GetBrebBillCollectionAsync(
-                item.CollectionId.ToString());
-                    if(dt != null)
+                    return BadRequest(new ProcessCollectionResponse
                     {
-                        result2.Add(dt);
-                    }
-
+                        Success = false,
+                        Message = "CollFrom is required",
+                        Status = "INVALID_REQUEST"
+                    });
                 }
-                
+
+                string clientType = request.ClientType.ToString();
+
+                _logger.LogInformation("[Dispute Controller] Processing collection request for Client: {ClientType}, CollFrom: {CollFrom}",
+                    clientType, request.CollFrom);
+
+                // Get the appropriate processor for this client type
+                var processor = _processorFactory.GetProcessor(clientType);
+
+                // Process the collection
+                var result = await processor.ProcessCollectionAsync(request);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("[Dispute Controller] Collection processed successfully for Client: {ClientType}, CollectionId: {CollectionId}",
+                        clientType, result.CollectionId);
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogWarning("[Dispute Controller] Collection processing failed for Client: {ClientType}, Status: {Status}",
+                        clientType, result.Status);
+
+                    // Return appropriate status code based on the error
+                    return result.Status switch
+                    {
+                        "NOT_FOUND" => NotFound(result),
+                        "INVALID_STATUS" => BadRequest(result),
+                        _ => StatusCode(500, result)
+                    };
+                }
             }
-            return Ok(result2);
+            catch (NotSupportedException ex)
+            {
+                _logger.LogError(ex, "[Dispute Controller] Unsupported client type");
+                return BadRequest(new ProcessCollectionResponse
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Status = "UNSUPPORTED_CLIENT"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Dispute Controller] Error in ProcessCollection endpoint");
+                return StatusCode(500, new ProcessCollectionResponse
+                {
+                    Success = false,
+                    Message = $"Internal server error: {ex.Message}",
+                    Status = "ERROR"
+                });
+            }
         }
 
-        [HttpPost("breb")]
-        public async Task<IActionResult> GetBrebBill(
-            [FromBody] BrebBillRequest request)
+        /// <summary>
+        /// Health check endpoint
+        /// </summary>
+        [HttpGet("health")]
+        public IActionResult Health()
         {
-            BrebBillCollectionModel dt = await _disputeManager.GetBrebBillCollectionAsync(
-                request.CollectionId.ToString());
-            return Ok(dt);
+            return Ok(new { status = "Healthy", timestamp = DateTime.Now });
         }
     }
 }
