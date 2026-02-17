@@ -1,6 +1,6 @@
+using BusinessLogicLayer.Manager;
 using BusinessLogicLayer.Models.Request;
 using BusinessLogicLayer.Models.Response;
-using BusinessLogicLayer.Processors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DisputeAutomation.Controllers
@@ -13,13 +13,13 @@ namespace DisputeAutomation.Controllers
     [Route("api/[controller]")]
     public class DisputeController : ControllerBase
     {
-        private readonly ProcessorFactory _processorFactory;
         private readonly ILogger<DisputeController> _logger;
+        private readonly IClientManager clientManager;
 
-        public DisputeController(ProcessorFactory processorFactory, ILogger<DisputeController> logger)
+        public DisputeController( ILogger<DisputeController> logger, IClientManager clientManager)
         {
-            _processorFactory = processorFactory;
             _logger = logger;
+            this.clientManager = clientManager;
         }
 
         /// <summary>
@@ -28,11 +28,11 @@ namespace DisputeAutomation.Controllers
         /// <param name="request">Collection processing request with ClientType</param>
         /// <returns>Processing result</returns>
         [HttpPost("process-collection")]
-        public async Task<IActionResult> ProcessCollection([FromBody] ProcessCollectionRequest request)
+        public async Task<IActionResult> ProcessCollection([FromBody] ProcessCollectionRequest collectionRequest)
         {
             try
             {
-                if (string.IsNullOrEmpty(request.CollFrom))
+                if (string.IsNullOrEmpty(collectionRequest.CollFrom))
                 {
                     return BadRequest(new ProcessCollectionResponse
                     {
@@ -42,35 +42,24 @@ namespace DisputeAutomation.Controllers
                     });
                 }
 
-                string clientType = request.ClientType.ToString();
+                string clientType = collectionRequest.ClientType.ToString();
 
                 _logger.LogInformation("[Dispute Controller] Processing collection request for Client: {ClientType}, CollFrom: {CollFrom}",
-                    clientType, request.CollFrom);
+                    clientType, collectionRequest.CollFrom);
 
                 // Get the appropriate processor for this client type
-                var processor = _processorFactory.GetProcessor(clientType);
+                var processor = "";
 
                 // Process the collection
-                var result = await processor.ProcessCollectionAsync(request);
+                var result = await clientManager.ProcessCollectionAsync(collectionRequest);
 
-                if (result.Success)
+                if (result!=null)
                 {
-                    _logger.LogInformation("[Dispute Controller] Collection processed successfully for Client: {ClientType}, CollectionId: {CollectionId}",
-                        clientType, result.CollectionId);
-                    return Ok(result);
+                   
                 }
                 else
                 {
-                    _logger.LogWarning("[Dispute Controller] Collection processing failed for Client: {ClientType}, Status: {Status}",
-                        clientType, result.Status);
-
-                    // Return appropriate status code based on the error
-                    return result.Status switch
-                    {
-                        "NOT_FOUND" => NotFound(result),
-                        "INVALID_STATUS" => BadRequest(result),
-                        _ => StatusCode(500, result)
-                    };
+                  
                 }
             }
             catch (NotSupportedException ex)
@@ -93,6 +82,7 @@ namespace DisputeAutomation.Controllers
                     Status = "ERROR"
                 });
             }
+            return Ok();
         }
 
         /// <summary>

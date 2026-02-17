@@ -1,11 +1,9 @@
-using BusinessLogicLayer.Processors;
-using BusinessLogicLayer.Processors.BREB;
-using BusinessLogicLayer.Processors.WASA;
-using BusinessLogicLayer.Processors.DESCO;
-using BusinessLogicLayer.Processors.DPDC;
-using BusinessLogicLayer.Repositories.BREB;
+using BusinessLogicLayer.Manager;
+using BusinessLogicLayer.Manager.BREB;
 using BusinessLogicLayer.Services.BREB;
+using DataAccessLayer.Repositories;
 using DataAccessLayer.Repositories.BREB;
+using DataAccessLayer.ServiceInvoker;
 using DisputeAutomation.DAL.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,23 +11,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ===== BREB Client Services =====
 builder.Services.AddHttpClient<IBrebApiService, BrebApiService>();
-builder.Services.AddScoped<IBrebRepository, BrebRepository>();
-builder.Services.AddScoped<IClientProcessor, BrebProcessor>();
-
-// ===== WASA Client Services =====
-// TODO: Add WASA-specific services when implemented
-builder.Services.AddScoped<IClientProcessor, WasaProcessor>();
+builder.Services.AddScoped<IBrebManager, BrebRepository>();
+builder.Services.AddHttpClient<BrebService>();
+builder.Services.AddScoped<IClientManager, ClientRepo>();
 
 // ===== DESCO Client Services =====
 // TODO: Add DESCO-specific services when implemented
-builder.Services.AddScoped<IClientProcessor, DescoProcessor>();
 
-// ===== DPDC Client Services =====
-// TODO: Add DPDC-specific services when implemented
-builder.Services.AddScoped<IClientProcessor, DpdcProcessor>();
-
-// ===== Processor Factory =====
-builder.Services.AddScoped<ProcessorFactory>();
 
 // Add services to the container
 builder.Services.AddControllers();
