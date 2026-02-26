@@ -1,6 +1,6 @@
 using BusinessLogicLayer.Manager;
 using BusinessLogicLayer.Manager.BREB;
-using BusinessLogicLayer.Services.BREB;
+using BusinessLogicLayer.ServiceInvoker;
 using DataAccessLayer.Repositories;
 using DataAccessLayer.Repositories.BREB;
 using DataAccessLayer.ServiceInvoker;
@@ -10,10 +10,10 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // ===== BREB Client Services =====
-builder.Services.AddHttpClient<IBrebApiService, BrebApiService>();
 builder.Services.AddScoped<IBrebManager, BrebRepository>();
 builder.Services.AddHttpClient<BrebService>();
 builder.Services.AddScoped<IClientManager, ClientRepo>();
+builder.Services.AddScoped<IBrebService, BrebService>();
 
 // ===== DESCO Client Services =====
 // TODO: Add DESCO-specific services when implemented
