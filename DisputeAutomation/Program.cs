@@ -1,5 +1,6 @@
 using BusinessLogicLayer.Manager;
 using BusinessLogicLayer.Manager.BREB;
+using BusinessLogicLayer.Models;
 using BusinessLogicLayer.ServiceInvoker;
 using DataAccessLayer.Repositories;
 using DataAccessLayer.Repositories.BREB;
@@ -14,6 +15,8 @@ builder.Services.AddScoped<IBrebManager, BrebRepository>();
 builder.Services.AddHttpClient<BrebService>();
 builder.Services.AddScoped<IClientManager, ClientRepo>();
 builder.Services.AddScoped<IBrebService, BrebService>();
+builder.Services.AddScoped<IDBLogManager, DBLogRepositories>();
+builder.Services.Configure<MessageSettings>(builder.Configuration.GetSection("Messages"));
 
 // ===== DESCO Client Services =====
 // TODO: Add DESCO-specific services when implemented

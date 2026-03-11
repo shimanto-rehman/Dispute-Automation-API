@@ -5,10 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DisputeAutomation.Controllers
 {
-    /// <summary>
-    /// Common Dispute Controller for all clients (BREB, WASA, DESCO, DPDC)
-    /// Routes requests to appropriate client-specific processor
-    /// </summary>
+
     [ApiController]
     [Route("api/[controller]")]
     public class DisputeController : ControllerBase
@@ -21,18 +18,12 @@ namespace DisputeAutomation.Controllers
             _logger = logger;
             this.clientManager = clientManager;
         }
-
-        /// <summary>
-        /// Process collection for any client (BREB, WASA, DESCO, DPDC)
-        /// </summary>
-        /// <param name="request">Collection processing request with ClientType</param>
-        /// <returns>Processing result</returns>
         [HttpPost("process-collection")]
         public async Task<IActionResult> ProcessCollection([FromBody] ProcessCollectionRequest collectionRequest)
         {
             try
             {
-                if (string.IsNullOrEmpty(collectionRequest.CollFrom))
+                if (string.IsNullOrEmpty(collectionRequest.BillerId))
                 {
                     return BadRequest(new ProcessCollectionResponse
                     {
@@ -45,12 +36,10 @@ namespace DisputeAutomation.Controllers
                 string clientType = collectionRequest.ClientType.ToString();
 
                 _logger.LogInformation("[Dispute Controller] Processing collection request for Client: {ClientType}, CollFrom: {CollFrom}",
-                    clientType, collectionRequest.CollFrom);
+                    clientType, collectionRequest.BillerId);
 
-                // Get the appropriate processor for this client type
                 var processor = "";
 
-                // Process the collection
                 var result = await clientManager.ProcessCollectionAsync(collectionRequest);
 
                 if (result!=null)
@@ -85,9 +74,6 @@ namespace DisputeAutomation.Controllers
             return Ok();
         }
 
-        /// <summary>
-        /// Health check endpoint
-        /// </summary>
         [HttpGet("health")]
         public IActionResult Health()
         {
